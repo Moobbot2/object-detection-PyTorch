@@ -6,6 +6,7 @@ RESIZE_TD = [640,640] # resize the image for training and trainsforms
 NUM_EPOCHS = 100 #number epochs to train for
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+# DEVICE = torch.device('cpu')
 
 print('DEVICE:', DEVICE)
 
@@ -16,7 +17,7 @@ VALID_DIR = './dataset/test'
 
 #classes: 0 index is reserved for background
 CLASSES = ['background','cat','dog']
-NUM_CLASSES = 2
+NUM_CLASSES = 3
 
 # whether to visualize images after crearing the data loaders
 VISUMLIZE_TRANSFORMED_IMAGES = False
