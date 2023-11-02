@@ -1,0 +1,5 @@
+*.tar.gz
+dataset/annotations
+dataset/images
+dataset/train
+dataset/test
