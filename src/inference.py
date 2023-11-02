@@ -12,7 +12,7 @@ device = torch.device(
 # load the model and trained weights
 model = create_model(num_classes=NUM_CLASSES).to(device)
 model.load_state_dict(torch.load(
-    './outputs_new/model_15.pth', map_location=device))
+    './outputs_new/model_50.pth', map_location=device))
 model.eval()
 
 # directory where all the images are present

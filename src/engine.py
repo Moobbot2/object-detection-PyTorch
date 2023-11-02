@@ -49,6 +49,8 @@ def train(train_data_loader, model):
 
         # update the loss value beside the progress bar for each interation
         prog_bar.set_description(desc=f"Loss: {loss_value:.4f}")
+        if loss_value < 0.05:
+            break
     return train_loss_list
 
 
@@ -127,7 +129,7 @@ if __name__ == '__main__':
         train_loss = train(train_loader, model)
         val_loss = validate(valid_loader, model)
         print(f'Epoch #{epoch} train loss: {train_lost_hist.value:.3f}')
-        print(f'Epoch #{epoch} validation loss: {train_lost_hist.value:.3f}')
+        print(f'Epoch #{epoch} validation loss: {val_lost_hist.value:.3f}')
         end = time.time()
         print(f'Took{((end-start)/60):.3f} minutes for epoch {epoch}')
 
@@ -135,7 +137,7 @@ if __name__ == '__main__':
             torch.save(model.state_dict(), f'{OUT_DIR}/model_{epoch+1}.pth')
             print('SAVING MODEL COMPLETE...\n')
 
-        if (epoch+1) == SAVE_PLOTS_EPOCH:  # save loss plots and model once at the end
+        if (epoch+1) % SAVE_PLOTS_EPOCH == 0:  # save loss plots and model once at the end
             train_ax.plot(train_loss, color="blue")
             train_ax.set_xlabel('iterations')
             train_ax.set_ylabel('train loss')
@@ -158,6 +160,9 @@ if __name__ == '__main__':
 
             torch.save(model.state_dict(), f"{OUT_DIR}/model_{epoch+1}.pth")
 
+        if float(train_lost_hist.value) < 0.05 and float(val_lost_hist.value) < 0.05:
+            torch.save(model.state_dict(), f"{OUT_DIR}/best_model_{epoch+1}.pth")
+            break
         plt.close('all')
         # sleep for 5 seconds after each epoch
         time.sleep(5)
