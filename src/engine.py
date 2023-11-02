@@ -19,6 +19,7 @@ def train(train_data_loader, model):
     print('Training')
     global train_itr
     global train_loss_list
+    train_loss_list = []
 
     # initialize tqdm progress bar
     prog_bar = tqdm(train_data_loader, total=len(train_data_loader))
@@ -55,6 +56,7 @@ def validate(valid_data_loader, model):
     print('Validating')
     global val_itr
     global val_loss_list
+    val_loss_list = []
 
     # initialize tqdm progress bar
     prog_bar = tqdm(valid_data_loader, total=len(valid_data_loader))
@@ -99,8 +101,8 @@ if __name__ == '__main__':
     val_itr = 1
     # train and validation loss lists to store loss values of all
     # iterations till ena and plot graphs for all iterations
-    train_lost_list = []
-    val_lost_list = []
+    train_loss_list = []
+    val_loss_list = []
 
     # name to save the trained model with
     MODEL_NAME = 'model'
