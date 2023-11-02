@@ -15,8 +15,9 @@ from sklearn.model_selection import train_test_split
 
 
 class CatDogDataset(Dataset):
-    def __init__(self, img_dir, annots_dir, width, height, classes, transforms=None):
+    def __init__(self, list_images_path, img_dir, annots_dir, width, height, classes, transforms=None):
         self.transforms = transforms
+        self.list_images_path = list_images_path
         self.img_dir = img_dir
         self.annots_dir = annots_dir
         self.width = width
@@ -24,13 +25,11 @@ class CatDogDataset(Dataset):
         self.classes = classes
 
         # Get image file names and remove extensions
-        image_files = [os.path.basename(fname) for fname in os.listdir(self.img_dir) if fname.endswith(('.jpg', '.png'))]
-        # image_files = [os.path.splitext(fname)[0] for fname in os.listdir(self.img_dir) if fname.endswith('.jpg', '.png')]
-        image_name_files = [os.path.splitext(image_file)[0] for image_file in image_files]
+        image_name_files = [os.path.splitext(os.path.basename(image_file))[0] for image_file in list_images_path]
         self.all_names_img = sorted(image_name_files)
 
         # Get annotation file names and remove extensions
-        annot_files = [os.path.basename(fname) for fname in os.listdir(self.img_dir) if fname.endswith(('.xml'))]
+        annot_files = [os.path.basename(fname) for fname in os.listdir(self.annots_dir) if fname.endswith(('.xml'))]
         # annot_files = [os.path.splitext(fname)[0] for fname in os.listdir(self.annots_dir) if fname.endswith('.xml')]
         annot_name_files = [os.path.splitext(annot_file)[0] for annot_file in annot_files]
         self.all_names_annot = sorted(annot_name_files)
@@ -38,12 +37,17 @@ class CatDogDataset(Dataset):
         # Find common names between image and annotation files
         self.all_same_names = sorted(set(self.all_names_img).intersection(self.all_names_annot))
 
+        self.annots_full_paths = [os.path.join(self.annots_dir, name + '.xml') for name in self.all_same_names]
+
 
     def __getitem__(self, index):
         # capture the image name and the full image path
         image_name = self.all_same_names[index]
-        image_path = os.path.join(self.img_dir, f"{image_name}.jpg" if f"{image_name}.jpg" in image_files else f"{image_name}.png")
 
+        image_path = os.path.join(self.img_dir, f"{image_name}.jpg") 
+        if image_path not in self.list_images_path:
+            os.path.join(self.img_dir, f"{image_name}.png")
+    
         # read the image
         image = cv2.imread(image_path)
         print(image.shape)
@@ -121,7 +125,7 @@ class CatDogDataset(Dataset):
         return image_resized, target
 
     def __len__(self):
-        return len(self.img_dir)
+        return len(self.all_same_names)
 
 #---------------------------PREPARE DATA-----------------------------------------#
 
@@ -132,10 +136,10 @@ all_image_paths = [os.path.join(images_dir, fname)
 TRAIN_IMG, TEST_IMG = train_test_split(all_image_paths, test_size=SPLIT_RATIO)
 
 # prepare the final datasets and data loaders
-train_dataset = CatDogDataset(TRAIN_IMG, ANNOTS_DIR, 
+train_dataset = CatDogDataset(TRAIN_IMG, IMAGES_DIR, ANNOTS_DIR, 
                               RESIZE_TD[0], RESIZE_TD[1], CLASSES, 
                               get_train_transform())
-valid_dataset = CatDogDataset(TEST_IMG, ANNOTS_DIR, 
+valid_dataset = CatDogDataset(TEST_IMG, IMAGES_DIR, ANNOTS_DIR, 
                               RESIZE_TD[0], RESIZE_TD[1], CLASSES, 
                               get_valid_transform())
 
@@ -165,7 +169,7 @@ print(f"Number of validation samples: {len(valid_dataset)}\n")
 # USAGE: python datasets.py
 if __name__ == "__main__":
     # sanity check of the Dataset pipeline with sample visualization
-    dataset = CatDogDataset(TRAIN_IMG, ANNOTS_DIR, RESIZE_TD[0], RESIZE_TD[1], CLASSES)
+    dataset = CatDogDataset(TRAIN_IMG, IMAGES_DIR, ANNOTS_DIR, RESIZE_TD[0], RESIZE_TD[1], CLASSES)
     print(f"Number of training images: {len(dataset)}")
 
     # function to visualize a single sample
@@ -193,7 +197,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error while visualizing the image: {e}")
 
-    NUM_SAMPLES_TO_VISUALIZE = 10
+    NUM_SAMPLES_TO_VISUALIZE = 3
     for i in range(NUM_SAMPLES_TO_VISUALIZE):
         idx = np.random.randint(0, len(dataset), size=1)
         image, target = dataset[idx[0]]
