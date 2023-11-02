@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import os
 import glob as glob
-from PIL import Image, ImageDraw
+import matplotlib.pyplot as plt
 
 from xml.etree import ElementTree as et
 from config import CLASSES, RESIZE_TD, TRAIN_DIR, VALID_DIR, BATCH_SIZE
@@ -152,28 +152,33 @@ if __name__ == "__main__":
     print(f"Number of training images: {len(dataset)}")
 
     # function to visualize a single sample
+
     def visualize_sample(image, target, save_path=None):
-        image = Image.fromarray(image)  # Convert NumPy array to PIL Image
-        draw = ImageDraw.Draw(image)
+        try:
+            image_copy = image.copy()
+            box = target['boxes'][0]
+            label = CLASSES[target['labels'][0]]
+            cv2.rectangle(image_copy,
+                          (int(box[0]), int(box[1])),
+                          (int(box[2]), int(box[3])),
+                          (0, 255, 0), 2)  # Removed extra parentheses around the color argument
 
-        for box, label in zip(target['boxes'], target['labels']):
-            # Convert box coordinates to integers
-            box = [int(coord) for coord in box]
-            label_text = CLASSES[label]
+            cv2.putText(image_copy, label, (int(box[0]), int(box[1] - 5)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            plt.imshow(cv2.cvtColor(image_copy, cv2.COLOR_BGR2RGB))
+            plt.axis('off')
+            plt.show()
 
-            # Draw a rectangle around the object
-            draw.rectangle(box, outline=(0, 255, 0), width=2)
+            if save_path:
+                # Optionally, save the annotated image to a file
+                image.save(save_path)
 
-            # Add a label near the object
-            draw.text((box[0], box[1] - 15), label_text, fill=(0, 0, 255))
+        except Exception as e:
+            print(f"Error while visualizing the image: {e}")
 
-        image.show()  # Display the image
-
-        if save_path:
-            image.save(save_path)  # Optionally, save the annotated image to a file
-
-    NUM_SAMPLES_TO_VISUALIZE = 5
+    NUM_SAMPLES_TO_VISUALIZE = 10
     for i in range(NUM_SAMPLES_TO_VISUALIZE):
-        image, target = dataset[i]
+        idx = np.random.randint(0, len(dataset), size=1)
+        image, target = dataset[idx[0]]
         visualize_sample(image, target)
-        print('image.shape:',image.shape)
+        print('image.shape:', image.shape)

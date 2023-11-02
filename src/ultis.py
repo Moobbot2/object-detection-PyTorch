@@ -1,6 +1,7 @@
 import albumentations as A
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 from albumentations.pytorch import ToTensorV2
 from config import DEVICE, CLASSES as classes
@@ -41,8 +42,6 @@ def collate_fn(batch):
 
 def get_train_transform():
     return A.Compose([
-        # A.Flip(0.5),
-        # A.RandomRotate90(0.55),
         ToTensorV2(p=1.0),
     ], bbox_params={
         'format': 'pascal_voc',
@@ -53,8 +52,6 @@ def get_train_transform():
 # define the validation tranforms
 def get_valid_transform():
     return A.Compose([
-        # A.Flip(0.5),
-        # A.RandomRotate90(0.55),
         ToTensorV2(p=1.0),
     ], bbox_params={
         'format': 'pascal_voc',
@@ -62,21 +59,21 @@ def get_valid_transform():
     })
 
 
-def show_tranformed_image(train_loader):
-    #
+def show_transformed_image(train_loader):
     if len(train_loader) > 0:
-        for i in range(1):
-            images, targets = next(iter(train_loader))
+        for i, (images, targets) in enumerate(train_loader):
             images = list(image.to(DEVICE) for image in images)
             targets = [{k: v.to(DEVICE) for k, v in t.items()}
                        for t in targets]
-            boxes = targets[i]['boxes'].cpu().numpy().astype(np.int32)
-            sample = images[i].permute(1, 2, 0).cpu().numpy()
-            for box in boxes:
-                cv2.rectangle(sample,
-                              (box[0], box[1]),
-                              (box[2], box[3]),
-                              (0, 0, 255), 2)
-            cv2.imshow('Trainsformed image', sample)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+
+            image = images[0].permute(1, 2, 0).cpu().numpy()
+            image_copy = np.copy(image)
+
+            for box in targets[0]['boxes'].cpu().numpy().astype(np.int32):
+                cv2.rectangle(
+                    image_copy, (box[0], box[1]), (box[2], box[3]), (0, 0, 255), 2)
+
+            # Display the transformed image using Matplotlib
+            plt.imshow(image_copy)
+            plt.axis('off')
+            plt.show()

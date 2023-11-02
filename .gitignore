@@ -1,5 +1,3 @@
 *.tar.gz
-dataset/annotations
-dataset/images
-dataset/train
-dataset/test
+dataset/
+src/__pycache__/
