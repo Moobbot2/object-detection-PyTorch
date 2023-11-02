@@ -6,15 +6,11 @@ RESIZE_TD = [640,640] # resize the image for training and trainsforms
 NUM_EPOCHS = 100 #number epochs to train for
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-# DEVICE = torch.device('cpu')
-
 print('DEVICE:', DEVICE)
 
-# Training images and XML files directory
-TRAIN_DIR = './dataset/train'
-# Validation images and XML files directory
-VALID_DIR = './dataset/test'
-
+ANNOTS_DIR ='./dataset/annots'
+IMAGES_DIR ='./dataset/images'
+SPLIT_RATIO = 0.2
 #classes: 0 index is reserved for background
 CLASSES = ['background','cat','dog']
 NUM_CLASSES = 3
