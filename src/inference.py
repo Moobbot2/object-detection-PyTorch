@@ -1,8 +1,12 @@
 import numpy as np
+import os
 import cv2
 import torch
 import glob as glob
 import matplotlib.pyplot as plt
+from PIL import Image
+from xml.etree.ElementTree import Element, SubElement, ElementTree
+
 from config import NUM_CLASSES, CLASSES
 from model import create_model
 
@@ -28,9 +32,13 @@ CLASSES = CLASSES
 # any detection having score below this will be discrarded
 detection_threshold = 0.8
 
+xml_dir = './dataset/test_predictions/xml/'
+os.makedirs(xml_dir, exist_ok=True)
+
 for i in range(len(test_images)):
     # get the image file name for saving output later on
-    image_name = test_images[i].split('/')[-1].split('.')[0]
+    image_name = os.path.basename(test_images[i])
+    image_name = image_name.split('.')[0]
     image = cv2.imread(test_images[i])
     orig_image = image.copy()
     # BRG to RGB
@@ -70,10 +78,43 @@ for i in range(len(test_images)):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2,
                         lineType=cv2.LINE_AA)
 
-        plt.imshow(cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB))
+        pil_image = Image.fromarray(cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB))
+        
+        # Use an f-string to include the image_name in the file path
+        pil_image.save(f'./dataset/test_predictions/{image_name}.jpg')
+
+# Create an XML file for Pascal VOC format
+        annotation = Element('annotation')
+
+        # Add basic image information
+        folder = SubElement(annotation, 'folder')
+        folder.text = 'test_predictions'
+        filename = SubElement(annotation, 'filename')
+        filename.text = f'{image_name}.jpg'
+
+        # Add object information for each detected box
+        for j, box in enumerate(draw_boxes):
+            obj = SubElement(annotation, 'object')
+            name = SubElement(obj, 'name')
+            name.text = pred_classes[j]
+            bndbox = SubElement(obj, 'bndbox')
+            xmin = SubElement(bndbox, 'xmin')
+            xmin.text = str(box[0])
+            ymin = SubElement(bndbox, 'ymin')
+            ymin.text = str(box[1])
+            xmax = SubElement(bndbox, 'xmax')
+            xmax.text = str(box[2])
+            ymax = SubElement(bndbox, 'ymax')
+            ymax.text = str(box[3])
+
+        # Save the XML file
+        xml_file = os.path.join(xml_dir, f'{image_name}.xml')
+        tree = ElementTree(annotation)
+        tree.write(xml_file)
+
+        plt.imshow(pil_image)
         plt.axis('off')
         plt.show()
-        cv2.imwrite(f'./dataset/test_predictions/{image_name}.jpg', orig_image,)
     print(f'Image {i+1} done ...')
     print('-'*50)
 
