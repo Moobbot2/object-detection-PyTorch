@@ -132,7 +132,7 @@ if __name__ == '__main__':
         print(f'Took{((end-start)/60):.3f} minutes for epoch {epoch}')
 
         if (epoch+1) % SAVE_MODEL_EPOCH == 0:  # save model after every n epochs
-            torch.save(model.state_dict(), f'{OUT_DIR}/model{epoch+1}.pth')
+            torch.save(model.state_dict(), f'{OUT_DIR}/model_{epoch+1}.pth')
             print('SAVING MODEL COMPLETE...\n')
 
         if (epoch+1) == SAVE_PLOTS_EPOCH:  # save loss plots and model once at the end

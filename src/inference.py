@@ -2,25 +2,27 @@ import numpy as np
 import cv2
 import torch
 import glob as glob
-
+import matplotlib.pyplot as plt
+from config import NUM_CLASSES, CLASSES
 from model import create_model
 
 # set the computation device
 device = torch.device(
     'cuda') if torch.cuda.is_available() else torch.device('cpu')
 # load the model and trained weights
-model = create_model(num_classes=1).to(device)
+model = create_model(num_classes=NUM_CLASSES).to(device)
 model.load_state_dict(torch.load(
-    '../outputs/model_100.pth', map_location=device))
+    './outputs_new/model_15.pth', map_location=device))
 model.eval()
 
 # directory where all the images are present
-DIR_TEST = '../test_data'
+DIR_TEST = './dataset/test_data'
 test_images = glob.glob(f"{DIR_TEST}/*")
 print(f"Test instances: {len(test_images)}")
 
 # classes: 0 index is reserved for background
-CLASSES = ['background', 'truck']
+# CLASSES = ['background', 'cat','dog']
+CLASSES = CLASSES
 
 # define the detection threshold...
 # any detection having score below this will be discrarded
@@ -36,7 +38,7 @@ for i in range(len(test_images)):
     # make the pixel range between o and 1
     image /= 255.0
     # bring color channels to front
-    image = np.transpose(image, (2, 0, 1)).astype(np.float)
+    image = np.transpose(image, (2, 0, 1)).astype(float)
     # convert to tensor
     image = torch.tensor(image, dtype=torch.float).cuda()
     # add batch dimension
@@ -68,11 +70,11 @@ for i in range(len(test_images)):
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2,
                         lineType=cv2.LINE_AA)
 
-        cv2.imshow('Prediction', orig_image)
-        cv2.waitKey(1)
-        cv2.imwrite(f'../test_predictions/{image_name}.jpg', orig_image,)
+        plt.imshow(cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB))
+        plt.axis('off')
+        plt.show()
+        cv2.imwrite(f'./dataset/test_predictions/{image_name}.jpg', orig_image,)
     print(f'Image {i+1} done ...')
     print('-'*50)
 
 print('TEST PREDICTIONS COMPLETE')
-cv2.destroyAllWindows()
