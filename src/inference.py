@@ -15,7 +15,7 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 
 # Load the model and trained weights
 model = create_model(num_classes=NUM_CLASSES).to(device)
-model.load_state_dict(torch.load('./outputs_new/model_50.pth', map_location=device))
+model.load_state_dict(torch.load('./outputs_new/model_100.pth', map_location=device))
 model.eval()
 
 # Directory where all the test images are located
@@ -85,7 +85,10 @@ for i in range(len(test_images)):
     # Change color channels to the front
     image = np.transpose(image, (2, 0, 1)).astype(float)
     # Convert to a tensor
-    image = torch.tensor(image, dtype=torch.float).cuda()
+    if torch.cuda.is_available():
+        image = torch.tensor(image, dtype=torch.float).cuda()
+    else:
+        image = torch.tensor(image, dtype=torch.float).cpu()
     # Add a batch dimension
     image = torch.unsqueeze(image, 0)
     with torch.no_grad():
