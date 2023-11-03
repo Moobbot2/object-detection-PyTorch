@@ -11,9 +11,6 @@
 -----[test_data]
 -------abc_3.jpg
 -------abc_4.png
--------[xml]
----------abc_3.xml
----------abc_4.xml
 ---directory_tree.txt
 ---[outputs_new]
 -----model_50.pth
