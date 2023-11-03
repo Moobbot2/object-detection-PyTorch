@@ -4,16 +4,14 @@ import numpy as np
 import os
 import glob as glob
 import matplotlib.pyplot as plt
-
 from xml.etree import ElementTree as et
+
 from config import CLASSES, RESIZE_TD, IMAGES_DIR, ANNOTS_DIR, BATCH_SIZE, SPLIT_RATIO
 from torch.utils.data import Dataset, DataLoader
 from ultis import collate_fn, get_train_transform, get_valid_transform
 from sklearn.model_selection import train_test_split
 
-# the dataset class
-
-
+# The dataset class
 class CatDogDataset(Dataset):
     def __init__(self, list_images_path, img_dir, annots_dir, width, height, classes, transforms=None):
         self.transforms = transforms
@@ -32,7 +30,7 @@ class CatDogDataset(Dataset):
         # Get the base names of annotation files
         annot_files = [os.path.basename(fname) for fname in os.listdir(self.annots_dir) if fname.endswith('.xml')]
         annot_name_files = [os.path.splitext(annot_file)[0] for annot_file in annot_files]
-        
+
         # Find common names between image and annotation files
         all_same_names = list(set(image_name_files).intersection(annot_name_files))
         return all_same_names
@@ -44,21 +42,23 @@ class CatDogDataset(Dataset):
         
         # read the image
         image = cv2.imread(image_path)
-        print(image_path,':',image.shape)
+        print(image_path, ':', image.shape)
         # convert BGR to RGB color format
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
         image_resized = cv2.resize(image, (self.width, self.height))
         image_resized /= 255.0
 
         # Capture the corresponding XML file for getting the annotations
-        annot_filename = image_name +'.xml'
+        annot_filename = image_name + '.xml'
         annot_file_path = os.path.join(self.annots_dir, annot_filename)
 
+        # Get bounding boxes và labels
         boxes, labels = self.extract_annotations(annot_file_path, image.shape)
 
+        # Create target
         target = self.create_target(boxes, labels, index)
 
-        # apply the label images
+        # Apply the label images if has
         if self.transforms:
             sample = self.transforms(image=image_resized,
                                      bboxes=target['boxes'],
@@ -67,7 +67,7 @@ class CatDogDataset(Dataset):
             target['boxes'] = torch.Tensor(sample['bboxes'])
 
         return image_resized, target
-    
+
     def find_image_path(self, image_name):
         for extension in ['.jpg', '.png']:
             image_path = os.path.join(self.img_dir, image_name + extension)
@@ -82,7 +82,12 @@ class CatDogDataset(Dataset):
 
         for member in root.findall('object'):
             labels.append(self.classes.index(member.find('name').text))
-            xmin, xmax, ymin, ymax = [int(member.find('bndbox').find(coord).text) for coord in ['xmin', 'xmax', 'ymin', 'ymax']]
+            coords = ['xmin', 'xmax', 'ymin', 'ymax']
+            # Get the coordinate values of the bounding box
+            xmin, xmax, ymin, ymax = [int(member.find('bndbox').find(coord).text) for coord in coords]
+            # xmin, xmax, ymin, ymax = [int(member.find('bndbox').find(coord).text) for coord in ['xmin', 'xmax', 'ymin', 'ymax']]
+            
+            # Adjust the bounding box coordinates to the new size
             xmin_final = (xmin / image_width) * self.width
             xmax_final = (xmax / image_width) * self.width
             ymin_final = (ymin / image_height) * self.height
@@ -114,17 +119,17 @@ class CatDogDataset(Dataset):
 #---------------------------PREPARE DATA-----------------------------------------#
 
 images_dir = IMAGES_DIR
-all_image_paths = [os.path.join(images_dir, fname) 
-                for fname in os.listdir(images_dir) 
-                if fname.endswith(('.jpg', '.png'))]
+all_image_paths = [os.path.join(images_dir, fname)
+                    for fname in os.listdir(images_dir)
+                    if fname.endswith(('.jpg', '.png'))]
 TRAIN_IMG, TEST_IMG = train_test_split(all_image_paths, test_size=SPLIT_RATIO)
 
 # prepare the final datasets and data loaders
-train_dataset = CatDogDataset(TRAIN_IMG, IMAGES_DIR, ANNOTS_DIR, 
-                              RESIZE_TD[0], RESIZE_TD[1], CLASSES, 
+train_dataset = CatDogDataset(TRAIN_IMG, IMAGES_DIR, ANNOTS_DIR,
+                              RESIZE_TD[0], RESIZE_TD[1], CLASSES,
                               get_train_transform())
-valid_dataset = CatDogDataset(TEST_IMG, IMAGES_DIR, ANNOTS_DIR, 
-                              RESIZE_TD[0], RESIZE_TD[1], CLASSES, 
+valid_dataset = CatDogDataset(TEST_IMG, IMAGES_DIR, ANNOTS_DIR,
+                              RESIZE_TD[0], RESIZE_TD[1], CLASSES,
                               get_valid_transform())
 
 print('train_dataset:', train_dataset)
@@ -170,6 +175,7 @@ if __name__ == "__main__":
 
             cv2.putText(image_copy, label, (int(box[0]), int(box[1] - 5)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            
             plt.imshow(cv2.cvtColor(image_copy, cv2.COLOR_BGR2RGB))
             plt.axis('off')
             plt.show()
