@@ -23,96 +23,40 @@ class CatDogDataset(Dataset):
         self.width = width
         self.height = height
         self.classes = classes
+        self.all_same_names = self.prepare_all_same_names()
 
+    def prepare_all_same_names(self):
         # Get image file names and remove extensions
-        image_name_files = [os.path.splitext(os.path.basename(image_file))[0] for image_file in list_images_path]
-        self.all_names_img = sorted(image_name_files)
+        image_name_files = [os.path.splitext(os.path.basename(image_file))[0] for image_file in self.list_images_path]
 
-        # Get annotation file names and remove extensions
-        annot_files = [os.path.basename(fname) for fname in os.listdir(self.annots_dir) if fname.endswith(('.xml'))]
-        # annot_files = [os.path.splitext(fname)[0] for fname in os.listdir(self.annots_dir) if fname.endswith('.xml')]
+        # Get the base names of annotation files
+        annot_files = [os.path.basename(fname) for fname in os.listdir(self.annots_dir) if fname.endswith('.xml')]
         annot_name_files = [os.path.splitext(annot_file)[0] for annot_file in annot_files]
-        self.all_names_annot = sorted(annot_name_files)
-
+        
         # Find common names between image and annotation files
-        self.all_same_names = sorted(set(self.all_names_img).intersection(self.all_names_annot))
-
-        self.annots_full_paths = [os.path.join(self.annots_dir, name + '.xml') for name in self.all_same_names]
-
+        all_same_names = list(set(image_name_files).intersection(annot_name_files))
+        return all_same_names
 
     def __getitem__(self, index):
-        # capture the image name and the full image path
+        # Capture the image name and the full image path
         image_name = self.all_same_names[index]
-
-        image_path = os.path.join(self.img_dir, f"{image_name}.jpg") 
-        if image_path not in self.list_images_path:
-            os.path.join(self.img_dir, f"{image_name}.png")
-    
+        image_path = self.find_image_path(image_name)
+        
         # read the image
         image = cv2.imread(image_path)
-        print(image.shape)
+        print(image_path,':',image.shape)
         # convert BGR to RGB color format
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
         image_resized = cv2.resize(image, (self.width, self.height))
         image_resized /= 255.0
 
-        # capture the corresponding XML file for getting the annotations
+        # Capture the corresponding XML file for getting the annotations
         annot_filename = image_name +'.xml'
         annot_file_path = os.path.join(self.annots_dir, annot_filename)
 
-        boxes = []
-        labels = []
-        tree = et.parse(self.annots_full_paths[index])
-        root = tree.getroot()
+        boxes, labels = self.extract_annotations(annot_file_path, image.shape)
 
-        # get the height and width of the image
-        image_width = image.shape[1]
-        image_height = image.shape[0]
-
-        # box coordinates for xml files are extracted and corrected for image size given
-        for member in root.findall('object'):
-            # map the current object name to "classes" list to get...
-            # ... the label index and append to "labels" list
-            labels.append(self.classes.index(member.find('name').text))
-
-            # xmin - left corner x-coordinates
-            xmin = int(member.find('bndbox').find('xmin').text)
-
-            # xmax - right corner x-coordinates
-            xmax = int(member.find('bndbox').find('xmax').text)
-
-            # ymin - left corner y-coordinates
-            ymin = int(member.find('bndbox').find('ymin').text)
-
-            # ymax - right corner y-coordinates
-            ymax = int(member.find('bndbox').find('ymax').text)
-
-            # resize the bounding boxes according to the ...
-            # ... desired 'width', 'height'
-            xmin_final = (xmin/image_width)*self.width
-            xmax_final = (xmax/image_width)*self.width
-            ymin_final = (ymin/image_height)*self.height
-            ymax_final = (ymax/image_height)*self.height
-
-            boxes.append([xmin_final, ymin_final, xmax_final, ymax_final])
-
-        # bounding box to tensor
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        # area of the bounding boxes
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-        # no crowd instances
-        iscrowd = torch.zeros((boxes.shape[0],), dtype=torch.int64)
-        # label tensor
-        labels = torch.as_tensor(labels, dtype=torch.int64)
-
-        # prepare the final "target" dictionary
-        target = {}
-        target['boxes'] = boxes
-        target['labels'] = labels
-        target['area'] = area
-        target['iscrowd'] = iscrowd
-        image_id = torch.tensor([index])
-        target['image_id'] = image_id
+        target = self.create_target(boxes, labels, index)
 
         # apply the label images
         if self.transforms:
@@ -123,6 +67,46 @@ class CatDogDataset(Dataset):
             target['boxes'] = torch.Tensor(sample['bboxes'])
 
         return image_resized, target
+    
+    def find_image_path(self, image_name):
+        for extension in ['.jpg', '.png']:
+            image_path = os.path.join(self.img_dir, image_name + extension)
+            if image_path in self.list_images_path:
+                return image_path
+
+    def extract_annotations(self, annot_file_path, image_shape):
+        boxes, labels = [], []
+        tree = et.parse(annot_file_path)
+        root = tree.getroot()
+        image_width, image_height = image_shape[1], image_shape[0]
+
+        for member in root.findall('object'):
+            labels.append(self.classes.index(member.find('name').text))
+            xmin, xmax, ymin, ymax = [int(member.find('bndbox').find(coord).text) for coord in ['xmin', 'xmax', 'ymin', 'ymax']]
+            xmin_final = (xmin / image_width) * self.width
+            xmax_final = (xmax / image_width) * self.width
+            ymin_final = (ymin / image_height) * self.height
+            ymax_final = (ymax / image_height) * self.height
+            boxes.append([xmin_final, ymin_final, xmax_final, ymax_final])
+
+        return boxes, labels
+
+    def create_target(self, boxes, labels, index):
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+        iscrowd = torch.zeros((boxes.shape[0],), dtype=torch.int64)
+        labels = torch.as_tensor(labels, dtype=torch.int64)
+
+        target = {
+            'boxes': boxes,
+            'labels': labels,
+            'area': area,
+            'iscrowd': iscrowd
+        }
+        image_id = torch.tensor([index])
+        target['image_id'] = image_id
+
+        return target
 
     def __len__(self):
         return len(self.all_same_names)
