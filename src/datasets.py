@@ -97,21 +97,24 @@ class CustDataset(Dataset):
         return boxes, labels
 
     def create_target(self, boxes, labels, index):
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-        iscrowd = torch.zeros((boxes.shape[0],), dtype=torch.int64)
-        labels = torch.as_tensor(labels, dtype=torch.int64)
+        try:
+            boxes = torch.as_tensor(boxes, dtype=torch.float32)
+            area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+            iscrowd = torch.zeros((boxes.shape[0],), dtype=torch.int64)
+            labels = torch.as_tensor(labels, dtype=torch.int64)
 
-        target = {
-            'boxes': boxes,
-            'labels': labels,
-            'area': area,
-            'iscrowd': iscrowd
-        }
-        image_id = torch.tensor([index])
-        target['image_id'] = image_id
+            target = {
+                'boxes': boxes,
+                'labels': labels,
+                'area': area,
+                'iscrowd': iscrowd
+            }
+            image_id = torch.tensor([index])
+            target['image_id'] = image_id
 
-        return target
+            return target
+        except:
+            print('image ',torch.tensor([index]))
 
     def __len__(self):
         return len(self.all_same_names)
@@ -192,4 +195,5 @@ if __name__ == "__main__":
         idx = np.random.randint(0, len(dataset), size=1)
         image, target = dataset[idx[0]]
         visualize_sample(image, target)
-        print('image.shape:', image.shape)
+        # print('image.shape:', image.shape)
+        print(image.shape)

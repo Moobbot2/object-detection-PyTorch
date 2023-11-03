@@ -15,8 +15,10 @@ if not os.path.isdir(destination_directory):
 
 # List to store all the class names
 class_names = []
-# # Giá trị tìm trong phần tử <name>
-target_values = ['dog', '43', 'P4']
+# List file no class name
+list_file_no_class_name = []
+# Giá trị tìm trong phần tử <name>
+target_values = ['2', 'dog', '43', 'P4']
 
 # Iterate through all XML files in the directory
 for filename in os.listdir(xml_dir):
@@ -48,9 +50,9 @@ for filename in os.listdir(xml_dir):
                     print(f"Đã di chuyển tệp tin '{image_link}' vào thư mục '{destination_directory}'.")
                 except:
                     continue
-
-
-                
+            if name is None:
+                file_no_class_name = filename
+                list_file_no_class_name.append(class_name)
 
 # Remove duplicates and sort the class names
 class_names = list(set(class_names))
@@ -58,4 +60,8 @@ class_names.sort()
 
 # Print the list of class names
 for class_name in class_names:
+    print(class_name)
+
+# Print the list of file no class name
+for file_no_class_name in list_file_no_class_name:
     print(class_name)
