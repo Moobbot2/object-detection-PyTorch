@@ -10,64 +10,103 @@ from xml.etree.ElementTree import Element, SubElement, ElementTree
 from config import NUM_CLASSES, CLASSES
 from model import create_model
 
-# set the computation device
-device = torch.device(
-    'cuda') if torch.cuda.is_available() else torch.device('cpu')
-# load the model and trained weights
+# Set the computation device (CPU or GPU)
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+# Load the model and trained weights
 model = create_model(num_classes=NUM_CLASSES).to(device)
-model.load_state_dict(torch.load(
-    './outputs_new/model_50.pth', map_location=device))
+model.load_state_dict(torch.load('./outputs_new/model_50.pth', map_location=device))
 model.eval()
 
-# directory where all the images are present
+# Directory where all the test images are located
 DIR_TEST = './dataset/test_data'
 test_images = glob.glob(f"{DIR_TEST}/*")
 print(f"Test instances: {len(test_images)}")
 
-# classes: 0 index is reserved for background
-# CLASSES = ['background', 'cat','dog']
+# Classes: 0 index is reserved for background
 CLASSES = CLASSES
 
-# define the detection threshold...
-# any detection having score below this will be discrarded
+# Define the detection threshold - any detection with a score below this will be discarded
 detection_threshold = 0.8
 
+# Directory to store the output XML files
 xml_dir = './dataset/test_predictions/xml/'
 os.makedirs(xml_dir, exist_ok=True)
 
+# Function to save the image and its corresponding XML file
+def save_image_with_xml(image, image_name, draw_boxes, pred_classes):
+    pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    
+    # Save the image to the test_predictions folder
+    pil_image.save(f'./dataset/test_predictions/{image_name}.jpg')
+
+    # Create an XML file in Pascal VOC format
+    annotation = Element('annotation')
+
+    # Add basic image information
+    folder = SubElement(annotation, 'folder')
+    folder.text = 'test_predictions'
+    filename = SubElement(annotation, 'filename')
+    filename.text = f'{image_name}.jpg'
+
+    # Add object information for each detected box
+    for j, box in enumerate(draw_boxes):
+        obj = SubElement(annotation, 'object')
+        name = SubElement(obj, 'name')
+        name.text = pred_classes[j]
+        bndbox = SubElement(obj, 'bndbox')
+        xmin = SubElement(bndbox, 'xmin')
+        xmin.text = str(box[0])
+        ymin = SubElement(bndbox, 'ymin')
+        ymin.text = str(box[1])
+        xmax = SubElement(bndbox, 'xmax')
+        xmax.text = str(box[2])
+        ymax = SubElement(bndbox, 'ymax')
+        ymax.text = str(box[3])
+
+    # Save the XML file
+    xml_file = os.path.join(xml_dir, f'{image_name}.xml')
+    tree = ElementTree(annotation)
+    tree.write(xml_file)
+    print(f'The bounding box of the {image_name} image has been saved successfully')
+
+# Process each test image
 for i in range(len(test_images)):
-    # get the image file name for saving output later on
+    # Get the image file name for saving the output later
     image_name = os.path.basename(test_images[i])
     image_name = image_name.split('.')[0]
     image = cv2.imread(test_images[i])
     orig_image = image.copy()
-    # BRG to RGB
+    
+    # Convert color from BGR to RGB
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
-    # make the pixel range between o and 1
+    # Normalize pixel range to [0, 1]
     image /= 255.0
-    # bring color channels to front
+    # Change color channels to the front
     image = np.transpose(image, (2, 0, 1)).astype(float)
-    # convert to tensor
+    # Convert to a tensor
     image = torch.tensor(image, dtype=torch.float).cuda()
-    # add batch dimension
+    # Add a batch dimension
     image = torch.unsqueeze(image, 0)
     with torch.no_grad():
         outputs = model(image)
 
-    # load all detection to CPU for further operations
+    # Move all detections to CPU for further operations
     outputs = [{k: v.to('cpu') for k, v in t.items()} for t in outputs]
 
-    # carry further only if there are detected boxes
+    # Continue only if there are detected boxes
     if len(outputs[0]['boxes']) != 0:
         boxes = outputs[0]['boxes'].data.numpy()
         scores = outputs[0]['scores'].data.numpy()
-        # filter out boxes according to detection_threshold
+        
+        # Filter out boxes based on the detection threshold
         boxes = boxes[scores >= detection_threshold].astype(np.int32)
         draw_boxes = boxes.copy()
-        # get all the predicited class names
+        
+        # Get the predicted class names
         pred_classes = [CLASSES[i] for i in outputs[0]['labels'].cpu().numpy()]
 
-        # draw the bounding box and write the class name on top of it
+        # Draw bounding boxes and write class names on them
         for j, box in enumerate(draw_boxes):
             cv2.rectangle(orig_image,
                           (int(box[0]), int(box[1])),
@@ -77,42 +116,11 @@ for i in range(len(test_images)):
                         (int(box[0]), int(box[1]-5)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2,
                         lineType=cv2.LINE_AA)
-
-        pil_image = Image.fromarray(cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB))
         
-        # Use an f-string to include the image_name in the file path
-        pil_image.save(f'./dataset/test_predictions/{image_name}.jpg')
+        # Save the image and generate the XML file
+        pil_image = save_image_with_xml(orig_image, image_name, draw_boxes, pred_classes)
 
-# Create an XML file for Pascal VOC format
-        annotation = Element('annotation')
-
-        # Add basic image information
-        folder = SubElement(annotation, 'folder')
-        folder.text = 'test_predictions'
-        filename = SubElement(annotation, 'filename')
-        filename.text = f'{image_name}.jpg'
-
-        # Add object information for each detected box
-        for j, box in enumerate(draw_boxes):
-            obj = SubElement(annotation, 'object')
-            name = SubElement(obj, 'name')
-            name.text = pred_classes[j]
-            bndbox = SubElement(obj, 'bndbox')
-            xmin = SubElement(bndbox, 'xmin')
-            xmin.text = str(box[0])
-            ymin = SubElement(bndbox, 'ymin')
-            ymin.text = str(box[1])
-            xmax = SubElement(bndbox, 'xmax')
-            xmax.text = str(box[2])
-            ymax = SubElement(bndbox, 'ymax')
-            ymax.text = str(box[3])
-
-        # Save the XML file
-        xml_file = os.path.join(xml_dir, f'{image_name}.xml')
-        tree = ElementTree(annotation)
-        tree.write(xml_file)
-
-        plt.imshow(pil_image)
+        plt.imshow(orig_image)
         plt.axis('off')
         plt.show()
     print(f'Image {i+1} done ...')
