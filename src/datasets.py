@@ -4,102 +4,61 @@ import numpy as np
 import os
 import glob as glob
 import matplotlib.pyplot as plt
-
 from xml.etree import ElementTree as et
-from config import CLASSES, RESIZE_TD, TRAIN_DIR, VALID_DIR, BATCH_SIZE
+
+from config import CLASSES, RESIZE_TD, IMAGES_DIR, ANNOTS_DIR, BATCH_SIZE, SPLIT_RATIO
 from torch.utils.data import Dataset, DataLoader
 from ultis import collate_fn, get_train_transform, get_valid_transform
+from sklearn.model_selection import train_test_split
 
-# the dataset class
-
-
+# The dataset class
 class CatDogDataset(Dataset):
-    def __init__(self, dir_path, width, height, classes, transforms=None):
+    def __init__(self, list_images_path, img_dir, annots_dir, width, height, classes, transforms=None):
         self.transforms = transforms
-        self.dir_path = dir_path
+        self.list_images_path = list_images_path
+        self.img_dir = img_dir
+        self.annots_dir = annots_dir
         self.width = width
         self.height = height
         self.classes = classes
+        self.all_same_names = self.prepare_all_same_names()
 
-        # get all image paths in sorted order
-        self.image_paths = glob.glob(f"{self.dir_path}/*.jpg")  # .png
+    def prepare_all_same_names(self):
+        # Get image file names and remove extensions
+        image_name_files = [os.path.splitext(os.path.basename(image_file))[0] for image_file in self.list_images_path]
 
-        self.all_images = [image_path.split(
-            '\\')[-1] for image_path in self.image_paths]
-        self.all_images = sorted(self.all_images)
+        # Get the base names of annotation files
+        annot_files = [os.path.basename(fname) for fname in os.listdir(self.annots_dir) if fname.endswith('.xml')]
+        annot_name_files = [os.path.splitext(annot_file)[0] for annot_file in annot_files]
+
+        # Find common names between image and annotation files
+        all_same_names = list(set(image_name_files).intersection(annot_name_files))
+        return all_same_names
 
     def __getitem__(self, index):
-        # capture the image name and the full image path
-        image_name = self.all_images[index]
-        image_path = os.path.join(self.dir_path, image_name)
-
+        # Capture the image name and the full image path
+        image_name = self.all_same_names[index]
+        image_path = self.find_image_path(image_name)
+        
         # read the image
         image = cv2.imread(image_path)
-        print(image.shape)
+        print(image_path, ':', image.shape)
         # convert BGR to RGB color format
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
         image_resized = cv2.resize(image, (self.width, self.height))
         image_resized /= 255.0
 
-        # capture the corresponding XML file for getting the annotations
-        annot_filename = image_name[:-4]+'.xml'
-        annot_file_path = os.path.join(self.dir_path, annot_filename)
+        # Capture the corresponding XML file for getting the annotations
+        annot_filename = image_name + '.xml'
+        annot_file_path = os.path.join(self.annots_dir, annot_filename)
 
-        boxes = []
-        labels = []
-        tree = et.parse(annot_file_path)
-        root = tree.getroot()
+        # Get bounding boxes và labels
+        boxes, labels = self.extract_annotations(annot_file_path, image.shape)
 
-        # get the height and width of the image
-        image_width = image.shape[1]
-        image_height = image.shape[0]
+        # Create target
+        target = self.create_target(boxes, labels, index)
 
-        # box coordinates for xml files are extracted and corrected for image size given
-        for member in root.findall('object'):
-            # map the current object name to "classes" list to get...
-            # ... the label index and append to "labels" list
-            labels.append(self.classes.index(member.find('name').text))
-
-            # xmin - left corner x-coordinates
-            xmin = int(member.find('bndbox').find('xmin').text)
-
-            # xmax - right corner x-coordinates
-            xmax = int(member.find('bndbox').find('xmax').text)
-
-            # ymin - left corner y-coordinates
-            ymin = int(member.find('bndbox').find('ymin').text)
-
-            # ymax - right corner y-coordinates
-            ymax = int(member.find('bndbox').find('ymax').text)
-
-            # resize the bounding boxes according to the ...
-            # ... desired 'width', 'height'
-            xmin_final = (xmin/image_width)*self.width
-            xmax_final = (xmax/image_width)*self.width
-            ymin_final = (ymin/image_height)*self.height
-            ymax_final = (ymax/image_height)*self.height
-
-            boxes.append([xmin_final, ymin_final, xmax_final, ymax_final])
-
-        # bounding box to tensor
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        # area of the bounding boxes
-        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-        # no crowd instances
-        iscrowd = torch.zeros((boxes.shape[0],), dtype=torch.int64)
-        # label tensor
-        labels = torch.as_tensor(labels, dtype=torch.int64)
-
-        # prepare the final "target" dictionary
-        target = {}
-        target['boxes'] = boxes
-        target['labels'] = labels
-        target['area'] = area
-        target['iscrowd'] = iscrowd
-        image_id = torch.tensor([index])
-        target['image_id'] = image_id
-
-        # apply the label images
+        # Apply the label images if has
         if self.transforms:
             sample = self.transforms(image=image_resized,
                                      bboxes=target['boxes'],
@@ -109,15 +68,69 @@ class CatDogDataset(Dataset):
 
         return image_resized, target
 
-    def __len__(self):
-        return len(self.all_images)
+    def find_image_path(self, image_name):
+        for extension in ['.jpg', '.png']:
+            image_path = os.path.join(self.img_dir, image_name + extension)
+            if image_path in self.list_images_path:
+                return image_path
 
+    def extract_annotations(self, annot_file_path, image_shape):
+        boxes, labels = [], []
+        tree = et.parse(annot_file_path)
+        root = tree.getroot()
+        image_width, image_height = image_shape[1], image_shape[0]
+
+        for member in root.findall('object'):
+            labels.append(self.classes.index(member.find('name').text))
+            coords = ['xmin', 'xmax', 'ymin', 'ymax']
+            # Get the coordinate values of the bounding box
+            xmin, xmax, ymin, ymax = [int(member.find('bndbox').find(coord).text) for coord in coords]
+            # xmin, xmax, ymin, ymax = [int(member.find('bndbox').find(coord).text) for coord in ['xmin', 'xmax', 'ymin', 'ymax']]
+            
+            # Adjust the bounding box coordinates to the new size
+            xmin_final = (xmin / image_width) * self.width
+            xmax_final = (xmax / image_width) * self.width
+            ymin_final = (ymin / image_height) * self.height
+            ymax_final = (ymax / image_height) * self.height
+            boxes.append([xmin_final, ymin_final, xmax_final, ymax_final])
+
+        return boxes, labels
+
+    def create_target(self, boxes, labels, index):
+        boxes = torch.as_tensor(boxes, dtype=torch.float32)
+        area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+        iscrowd = torch.zeros((boxes.shape[0],), dtype=torch.int64)
+        labels = torch.as_tensor(labels, dtype=torch.int64)
+
+        target = {
+            'boxes': boxes,
+            'labels': labels,
+            'area': area,
+            'iscrowd': iscrowd
+        }
+        image_id = torch.tensor([index])
+        target['image_id'] = image_id
+
+        return target
+
+    def __len__(self):
+        return len(self.all_same_names)
+
+#---------------------------PREPARE DATA-----------------------------------------#
+
+images_dir = IMAGES_DIR
+all_image_paths = [os.path.join(images_dir, fname)
+                    for fname in os.listdir(images_dir)
+                    if fname.endswith(('.jpg', '.png'))]
+TRAIN_IMG, TEST_IMG = train_test_split(all_image_paths, test_size=SPLIT_RATIO)
 
 # prepare the final datasets and data loaders
-train_dataset = CatDogDataset(
-    TRAIN_DIR, RESIZE_TD[0], RESIZE_TD[1], CLASSES, get_train_transform())
-valid_dataset = CatDogDataset(
-    VALID_DIR, RESIZE_TD[0], RESIZE_TD[1], CLASSES, get_valid_transform())
+train_dataset = CatDogDataset(TRAIN_IMG, IMAGES_DIR, ANNOTS_DIR,
+                              RESIZE_TD[0], RESIZE_TD[1], CLASSES,
+                              get_train_transform())
+valid_dataset = CatDogDataset(TEST_IMG, IMAGES_DIR, ANNOTS_DIR,
+                              RESIZE_TD[0], RESIZE_TD[1], CLASSES,
+                              get_valid_transform())
 
 print('train_dataset:', train_dataset)
 print('valid_dataset:', valid_dataset)
@@ -145,10 +158,7 @@ print(f"Number of validation samples: {len(valid_dataset)}\n")
 # USAGE: python datasets.py
 if __name__ == "__main__":
     # sanity check of the Dataset pipeline with sample visualization
-    dataset = CatDogDataset(
-        TRAIN_DIR,
-        RESIZE_TD[0], RESIZE_TD[1], CLASSES
-    )
+    dataset = CatDogDataset(TRAIN_IMG, IMAGES_DIR, ANNOTS_DIR, RESIZE_TD[0], RESIZE_TD[1], CLASSES)
     print(f"Number of training images: {len(dataset)}")
 
     # function to visualize a single sample
@@ -165,6 +175,7 @@ if __name__ == "__main__":
 
             cv2.putText(image_copy, label, (int(box[0]), int(box[1] - 5)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+            
             plt.imshow(cv2.cvtColor(image_copy, cv2.COLOR_BGR2RGB))
             plt.axis('off')
             plt.show()
@@ -176,7 +187,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error while visualizing the image: {e}")
 
-    NUM_SAMPLES_TO_VISUALIZE = 10
+    NUM_SAMPLES_TO_VISUALIZE = 3
     for i in range(NUM_SAMPLES_TO_VISUALIZE):
         idx = np.random.randint(0, len(dataset), size=1)
         image, target = dataset[idx[0]]
