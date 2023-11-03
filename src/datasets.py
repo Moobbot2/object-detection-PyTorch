@@ -12,7 +12,7 @@ from ultis import collate_fn, get_train_transform, get_valid_transform
 from sklearn.model_selection import train_test_split
 
 # The dataset class
-class CatDogDataset(Dataset):
+class CustDataset(Dataset):
     def __init__(self, list_images_path, img_dir, annots_dir, width, height, classes, transforms=None):
         self.transforms = transforms
         self.list_images_path = list_images_path
@@ -125,10 +125,10 @@ all_image_paths = [os.path.join(images_dir, fname)
 TRAIN_IMG, TEST_IMG = train_test_split(all_image_paths, test_size=SPLIT_RATIO)
 
 # prepare the final datasets and data loaders
-train_dataset = CatDogDataset(TRAIN_IMG, IMAGES_DIR, ANNOTS_DIR,
+train_dataset = CustDataset(TRAIN_IMG, IMAGES_DIR, ANNOTS_DIR,
                               RESIZE_TD[0], RESIZE_TD[1], CLASSES,
                               get_train_transform())
-valid_dataset = CatDogDataset(TEST_IMG, IMAGES_DIR, ANNOTS_DIR,
+valid_dataset = CustDataset(TEST_IMG, IMAGES_DIR, ANNOTS_DIR,
                               RESIZE_TD[0], RESIZE_TD[1], CLASSES,
                               get_valid_transform())
 
@@ -158,7 +158,7 @@ print(f"Number of validation samples: {len(valid_dataset)}\n")
 # USAGE: python datasets.py
 if __name__ == "__main__":
     # sanity check of the Dataset pipeline with sample visualization
-    dataset = CatDogDataset(TRAIN_IMG, IMAGES_DIR, ANNOTS_DIR, RESIZE_TD[0], RESIZE_TD[1], CLASSES)
+    dataset = CustDataset(TRAIN_IMG, IMAGES_DIR, ANNOTS_DIR, RESIZE_TD[0], RESIZE_TD[1], CLASSES)
     print(f"Number of training images: {len(dataset)}")
 
     # function to visualize a single sample

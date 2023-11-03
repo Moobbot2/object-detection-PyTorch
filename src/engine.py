@@ -114,7 +114,7 @@ if __name__ == '__main__':
         from ultis import show_tranformed_image
         show_tranformed_image(train_loader)
     for epoch in range(NUM_EPOCHS):
-        print(f'\nEPOCH {epoch+1} of{NUM_EPOCHS}')
+        print(f'\nEPOCH {epoch+1} of {NUM_EPOCHS}')
 
         # reset the training and validation loss histories for the current epoch
         train_lost_hist.reset()
