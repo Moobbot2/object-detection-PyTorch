@@ -10,7 +10,7 @@ print('DEVICE:', DEVICE)
 
 ANNOTS_DIR ='./dataset/annots/label_train'
 IMAGES_DIR ='./dataset/images/pano_train'
-SPLIT_RATIO = 0.2
+SPLIT_RATIO = 0.3
 #classes: 0 index is reserved for background
 CLASSES = ['background','3','4','5']
 NUM_CLASSES = 4
@@ -20,6 +20,9 @@ VISUMLIZE_TRANSFORMED_IMAGES = False
 
 # location to save model and plots
 OUT_DIR = './outputs_new'
+
+# Type Image
+IMAGE_TYPE = ('.jpg', '.png', '.bmp')
 
 if not os.path.isdir(OUT_DIR):
     os.makedirs(OUT_DIR)

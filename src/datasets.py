@@ -6,7 +6,7 @@ import glob as glob
 import matplotlib.pyplot as plt
 from xml.etree import ElementTree as et
 
-from config import CLASSES, RESIZE_TD, IMAGES_DIR, ANNOTS_DIR, BATCH_SIZE, SPLIT_RATIO
+from config import CLASSES, RESIZE_TD, IMAGES_DIR, ANNOTS_DIR, BATCH_SIZE, SPLIT_RATIO, IMAGE_TYPE
 from torch.utils.data import Dataset, DataLoader
 from ultis import collate_fn, get_train_transform, get_valid_transform
 from sklearn.model_selection import train_test_split
@@ -78,7 +78,7 @@ class CustDataset(Dataset):
         return image_resized, target
 
     def find_image_path(self, image_name):
-        for extension in ['.jpg', '.png']:
+        for extension in IMAGE_TYPE:
             image_path = os.path.join(self.img_dir, image_name + extension)
             if image_path in self.list_images_path:
                 return image_path
@@ -133,7 +133,7 @@ class CustDataset(Dataset):
 images_dir = IMAGES_DIR
 all_image_paths = [os.path.join(images_dir, fname)
                     for fname in os.listdir(images_dir)
-                    if fname.endswith(('.jpg', '.png', '.bmp'))]
+                    if fname.endswith(IMAGE_TYPE)]
 
 print("Count Image:",len(all_image_paths))
 
