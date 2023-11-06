@@ -27,7 +27,7 @@ print(f"Test instances: {len(test_images)}")
 CLASSES = CLASSES
 
 # Define the detection threshold - any detection with a score below this will be discarded
-detection_threshold = 0.8
+detection_threshold = 0.3
 
 # Directory to store the output XML files
 xml_dir = './dataset/test_predictions/xml/'
@@ -106,8 +106,8 @@ for i in range(len(test_images)):
         boxes = boxes[scores >= detection_threshold].astype(np.int32)
         draw_boxes = boxes.copy()
         
-        # Get the predicted class names
-        pred_classes = [CLASSES[i] for i in outputs[0]['labels'].cpu().numpy()]
+        # Get the predicted class names and convert scores to strings
+        pred_classes = [f"{CLASSES[i]} -- scores: {scores[j]:.2f}" for j, i in enumerate(outputs[0]['labels'].cpu().numpy())]
 
         # Draw bounding boxes and write class names on them
         for j, box in enumerate(draw_boxes):

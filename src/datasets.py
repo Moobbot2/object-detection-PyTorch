@@ -24,6 +24,7 @@ class CustDataset(Dataset):
         self.all_same_names = self.prepare_all_same_names()
 
     def prepare_all_same_names(self):
+        print('--- Check intersection/incompatible---')
         # Get image file names and remove extensions
         image_name_files = [os.path.splitext(os.path.basename(image_file))[0] for image_file in self.list_images_path]
 
@@ -33,6 +34,14 @@ class CustDataset(Dataset):
 
         # Find common names between image and annotation files
         all_same_names = list(set(image_name_files).intersection(annot_name_files))
+
+        incompatible_files = [image_name for image_name in image_name_files if image_name not in annot_name_files]
+        if not incompatible_files:
+            print('All are compatible')
+        else:
+            for file_name in incompatible_files:
+                print(f"File '{file_name}' is incompatible.")
+        print('----------')
         return all_same_names
 
     def __getitem__(self, index):
@@ -124,7 +133,10 @@ class CustDataset(Dataset):
 images_dir = IMAGES_DIR
 all_image_paths = [os.path.join(images_dir, fname)
                     for fname in os.listdir(images_dir)
-                    if fname.endswith(('.jpg', '.png'))]
+                    if fname.endswith(('.jpg', '.png', '.bmp'))]
+
+print("Count Image:",len(all_image_paths))
+
 TRAIN_IMG, TEST_IMG = train_test_split(all_image_paths, test_size=SPLIT_RATIO)
 
 # prepare the final datasets and data loaders
@@ -195,5 +207,5 @@ if __name__ == "__main__":
         idx = np.random.randint(0, len(dataset), size=1)
         image, target = dataset[idx[0]]
         visualize_sample(image, target)
-        # print('image.shape:', image.shape)
-        print(image.shape)
+        print('image.shape:', image.shape)
+        # print(image.shape)

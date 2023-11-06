@@ -1,10 +1,10 @@
 import os
 
 # Thư mục chứa các tệp tin XML
-xml_directory = './dataset/annots/label_test'
+xml_directory = './dataset/annots/label_train'
 
 # Thư mục chứa các tệp tin ảnh
-img_directory = './dataset/images/pano_test'
+img_directory = './dataset/images/pano_train'
 
 destination_directory = './dataset/err_img'
 
@@ -21,12 +21,12 @@ missing_in_img = xml_files - img_files
 missing_in_xml = img_files - xml_files
 
 # In ra các tên tệp tin có trong thư mục label_train nhưng không có trong thư mục pano_train
-print("Các tên tệp tin có trong label_train nhưng không có trong pano_train:")
+print(f"Các tên tệp tin có trong {xml_directory} nhưng không có trong {img_directory}:")
 for filename in missing_in_img:
     print(filename)
 
 # In ra các tên tệp tin có trong thư mục pano_train nhưng không có trong thư mục label_train
-print("Các tên tệp tin có trong pano_train nhưng không có trong label_train:")
+print(f"Các tên tệp tin có trong {img_directory} nhưng không có trong {xml_directory}:")
 for filename in missing_in_xml:
     print(filename)
     # Di chuyển tệp tin vào thư mục đích

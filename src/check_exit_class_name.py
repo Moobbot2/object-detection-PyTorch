@@ -2,10 +2,10 @@ import os
 from xml.etree import ElementTree as ET
 
 # Thư mục chứa các tệp tin XML
-xml_directory = './dataset/annots/label_test'
+xml_directory = './dataset/annots/label_train'
 
 # Thư mục đích để lưu trữ các tệp XML không có phần tử <name>
-destination_directory = './dataset/err_img'
+destination_directory = './dataset/err_img_name'
 if not os.path.isdir(destination_directory):
     os.makedirs(destination_directory)
 
