@@ -87,6 +87,20 @@ def validate(valid_data_loader, model):
     return val_loss_list
 
 
+def save_chart(out_dir, train_loss, val_loss, epoch):
+    # create two subplots, one for each, training and validation
+    figure_1, train_ax = plt.subplots()
+    figure_2, valid_ax = plt.subplots()
+    train_ax.plot(train_loss, color="blue")
+    train_ax.set_xlabel('iterations')
+    train_ax.set_ylabel('train loss')
+    valid_ax.plot(val_loss, color="red")
+    valid_ax.set_xlabel('iterations')
+    valid_ax.set_ylabel('validation loss')
+    figure_1.savefig(f"{out_dir}/{epoch}_train_loss.png")
+    figure_2.savefig(f"{out_dir}/{epoch}_valid_loss.png")
+
+
 if __name__ == '__main__':
     # initialize the model and over the compufation device
     model = create_model(num_classes=NUM_CLASSES)
@@ -115,15 +129,13 @@ if __name__ == '__main__':
         from ultis import show_tranformed_image
         show_tranformed_image(train_loader)
     for epoch in range(NUM_EPOCHS):
-        print(f'\nEPOCH {epoch+1} of {NUM_EPOCHS}')
+        epoch_real = epoch+1
+
+        print(f'\nEPOCH {epoch_real} of {NUM_EPOCHS}')
 
         # reset the training and validation loss histories for the current epoch
         train_loss_hist.reset()
         val_loss_hist.reset()
-
-        # create two subplots, one for each, training and validation
-        figure_1, train_ax = plt.subplots()
-        figure_2, valid_ax = plt.subplots()
 
         # start timer and carry out training and validation
         start = time.time()
@@ -134,34 +146,20 @@ if __name__ == '__main__':
         end = time.time()
         print(f'Took{((end-start)/60):.3f} minutes for epoch {epoch}')
 
-        if (epoch+1) % SAVE_MODEL_EPOCH == 0:  # save model after every n epochs
+        if epoch_real % SAVE_MODEL_EPOCH == 0:  # save model after every n epochs
             torch.save(model.state_dict(), f'{OUT_DIR}/model_{epoch+1}.pth')
             print('SAVING MODEL COMPLETE...\n')
 
-        if (epoch+1) % SAVE_PLOTS_EPOCH == 0:  # save loss plots and model once at the end
-            train_ax.plot(train_loss, color="blue")
-            train_ax.set_xlabel('iterations')
-            train_ax.set_ylabel('train loss')
-            valid_ax.plot(val_loss, color="red")
-            valid_ax.set_xlabel('iterations')
-            valid_ax.set_ylabel('validation loss')
-            figure_1.savefig(f"{OUT_DIR}/train_loss_{epoch+1}.png")
-            figure_2.savefig(f"{OUT_DIR}/valid_loss_{epoch+1}.png")
+        if epoch_real % SAVE_PLOTS_EPOCH == 0:  # save loss plots and model once at the end
+            save_chart(OUT_DIR, train_loss, val_loss, epoch_real)
             print("SAVING PLOTS COMPLETE")
 
-        if (epoch+1) == NUM_EPOCHS:  # save loss plots and model once at the end
-            train_ax.plot(train_loss, color="blue")
-            train_ax.set_xlabel('iterations')
-            train_ax.set_ylabel('train loss')
-            valid_ax.plot(val_loss, color="red")
-            valid_ax.set_xlabel('iterations')
-            valid_ax.set_ylabel('validation loss')
-            figure_1.savefig(f"{OUT_DIR}/train_loss_{epoch+1}.png")
-            figure_2.savefig(f"{OUT_DIR}/valid_loss_{epoch+1}.png")
-
+        if epoch_real == NUM_EPOCHS:  # save loss plots and model once at the end
+            save_chart(OUT_DIR, train_loss, val_loss, epoch_real)
             torch.save(model.state_dict(), f"{OUT_DIR}/model_{epoch+1}.pth")
+            print('SAVING MODEL COMPLETE...\n')
 
-        if float(train_loss_hist.value) < 0.05 and float(val_loss_hist.value) < 0.05:
+        if float(train_loss_hist.value) < 0.05 or float(val_loss_hist.value) < 0.05:
             torch.save(model.state_dict(), f"{OUT_DIR}/best_model_{epoch+1}.pth")
             break
         plt.close('all')
