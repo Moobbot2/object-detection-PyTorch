@@ -15,6 +15,7 @@ output_directory = './dataset/check_data'
 os.makedirs(output_directory, exist_ok=True)
 
 def find_image_path(img_dir, image_name):
+    # Find the path of the image file based on its name and supported extensions
     for extension in IMAGE_TYPE:
         image_path = os.path.join(img_dir, f"{image_name}{extension}")
         if os.path.exists(image_path):
@@ -23,7 +24,12 @@ def find_image_path(img_dir, image_name):
 
 
 def calculate_iou(box1, box2):
+    # Calculate the Intersection over Union (IoU) of two bounding boxes
     # box: (xmin, ymin, xmax, ymax)
+    # Return IoU as a floating-point number
+    # IoU = Area of Intersection / Area of Union
+    # If IoU is 0, there is no overlap; if IoU is 1, the boxes are identical
+    # This function assumes that the input boxes are represented as [xmin, ymin, xmax, ymax]
 
     # Tính toán diện tích chung
     x_left = max(box1[0], box2[0])
@@ -47,6 +53,9 @@ def calculate_iou(box1, box2):
 
 
 def draw_boxes_on_image(image, gt_boxes, pred_boxes):
+    # Draw rectangles on the input image for both ground truth and predicted bounding boxes
+    # Green for ground truth, and red for predicted
+    # Return the image with rectangles drawn on it
     for box in gt_boxes:
         cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
 
@@ -57,6 +66,8 @@ def draw_boxes_on_image(image, gt_boxes, pred_boxes):
 
 
 def process_xml_file(xml_file_path):
+    # Process an XML file and extract information about bounding boxes
+    # Return a dictionary containing lists of bounding boxes and corresponding object names
     boxes = {'boxes': [], 'names': []}
     tree = ET.parse(xml_file_path)
     root = tree.getroot()
@@ -69,9 +80,12 @@ def process_xml_file(xml_file_path):
     return boxes
 
 def log_message(message):
+    # Log a message with a timestamp
     print(f"{datetime.now()} - {message}")
 
 def process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filename):
+    # Process an image, draw bounding boxes on it, and save the result
+    # Save the result in the specified output directory with the same filename as the XML file
     if os.path.exists(image_path):
         image = cv2.imread(image_path)
         drawn_image = draw_boxes_on_image(image, gt_boxes['boxes'], pred_boxes['boxes'])
@@ -84,6 +98,12 @@ def process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filena
 
 
 def process_image_and_xml(gt_xml_directory, pred_xml_directory, image_directory, output_directory):
+    '''
+    '''
+    # Process ground truth and predicted XML files along with images
+    # Compare bounding boxes and calculate IoU
+    # Print information about matches and mismatches
+    
     # Process XML files
     for xml_filename in os.listdir(gt_xml_directory):
         if xml_filename.endswith('.xml'):
