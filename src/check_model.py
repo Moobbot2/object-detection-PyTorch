@@ -16,7 +16,7 @@ os.makedirs(output_directory, exist_ok=True)
 
 def find_image_path(img_dir, image_name):
     for extension in IMAGE_TYPE:
-        image_path = os.path.join(img_dir, image_name + extension)
+        image_path = os.path.join(img_dir, f"{image_name}{extension}")
         if os.path.exists(image_path):
             return image_path
     return None  # Return None if the image is not found
@@ -48,12 +48,10 @@ def calculate_iou(box1, box2):
 
 def draw_boxes_on_image(image, gt_boxes, pred_boxes):
     for box in gt_boxes:
-        cv2.rectangle(image, (box[0], box[1]),
-                      (box[2], box[3]), (0, 255, 0), 2)
+        cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
 
     for box in pred_boxes:
-        cv2.rectangle(image, (box[0], box[1]),
-                      (box[2], box[3]), (255, 0, 0), 2)
+        cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (255, 0, 0), 2)
 
     return image
 
@@ -63,14 +61,15 @@ def process_xml_file(xml_file_path):
     tree = ET.parse(xml_file_path)
     root = tree.getroot()
     for obj in root.findall('object/bndbox'):
-        box = [int(obj.find(coord).text) if obj.find(
-            coord) is not None else 0 for coord in ['xmin', 'ymin', 'xmax', 'ymax']]
+        box = [int(obj.find(coord).text) if obj.find(coord) is not None else 0 for coord in ['xmin', 'ymin', 'xmax', 'ymax']]
         boxes['boxes'].append(box)
         name_element = obj.find('name')
         name = name_element.text if name_element is not None else ''
         boxes['names'].append(name)
     return boxes
 
+def log_message(message):
+    print(f"{datetime.now()} - {message}")
 
 def process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filename):
     if os.path.exists(image_path):
@@ -92,14 +91,13 @@ def process_image_and_xml(gt_xml_directory, pred_xml_directory, image_directory,
             pred_xml_file_path = os.path.join(pred_xml_directory, xml_filename)
 
             if not os.path.exists(gt_xml_file_path) or not os.path.exists(pred_xml_file_path):
-                print(f"{datetime.now()} - Ground truth or predicted XML file not found for: {xml_filename}")
+                log_message(f"Ground truth or predicted XML file not found for: {xml_filename}")
                 continue
 
             gt_boxes = process_xml_file(gt_xml_file_path)
             pred_boxes = process_xml_file(pred_xml_file_path)
 
-            image_name = os.path.basename(gt_xml_file_path)
-            image_name = image_name.split('.')[0]
+            image_name, _ = os.path.splitext(os.path.basename(gt_xml_file_path))
             image_path = find_image_path(image_directory, image_name)
 
             process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filename)
@@ -110,13 +108,11 @@ def process_image_and_xml(gt_xml_directory, pred_xml_directory, image_directory,
                 for j, pred_box in enumerate(pred_boxes['boxes']):
                     iou = calculate_iou(gt_box, pred_box)
                     if iou > iou_threshold and gt_boxes['names'][i] == pred_boxes['names'][j]:
-                        print(
-                            f"{datetime.now()} - Match found!\nGround Truth XML: {xml_filename}, Bounding Box: {gt_box}, Name: {gt_boxes['names'][i]}\nPredicted XML: {xml_filename}, Bounding Box: {pred_box}, Name: {pred_boxes['names'][j]}\nIoU: {iou}\n")
-
+                        log_message(f"Match found!\nGround Truth XML: {xml_filename}, Bounding Box: {gt_box}, Name: {gt_boxes['names'][i]}\nPredicted XML: {xml_filename}, Bounding Box: {pred_box}, Name: {pred_boxes['names'][j]}\nIoU: {iou}")
 
 
 # Create a log file with timestamps
-log_file_path = f'log/history_{time.time()}.log'
+log_file_path = f'log/history_{datetime.now().strftime("%Y%m%d%H%M%S")}.log'
 with open(log_file_path, 'w') as log_file:
     # Redirect stdout to the log file
     sys.stdout = log_file
@@ -125,4 +121,4 @@ with open(log_file_path, 'w') as log_file:
 # Restore the original stdout
 sys.stdout = sys.__stdout__
 
-print('Done! Log saved to', log_file_path)
+log_message('Done! Log saved to ' + log_file_path)
