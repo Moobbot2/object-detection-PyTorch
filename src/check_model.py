@@ -8,6 +8,11 @@ from PIL import Image
 
 from config import IMAGE_TYPE
 
+gt_xml_directory = './dataset/annots/label_test'
+pred_xml_directory = './dataset/test_predictions/xml'
+image_directory = './dataset/images/pano_test'
+output_directory = './dataset/check_data'
+os.makedirs(output_directory, exist_ok=True)
 
 def find_image_path(img_dir, image_name):
     for extension in IMAGE_TYPE:
@@ -66,6 +71,7 @@ def process_xml_file(xml_file_path):
         boxes['names'].append(name)
     return boxes
 
+
 def process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filename):
     if os.path.exists(image_path):
         image = cv2.imread(image_path)
@@ -77,18 +83,8 @@ def process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filena
     else:
         print(f"{datetime.now()} - Image not found: {image_path}")
 
-gt_xml_directory = './dataset/annots/label_test'
-pred_xml_directory = './dataset/test_predictions/xml'
-image_directory = './dataset/images/pano_test'
-output_directory = './dataset/check_data'
-os.makedirs(output_directory, exist_ok=True)
 
-# Create a log file with timestamps
-log_file_path = f'log/history_{time.time()}.log'
-with open(log_file_path, 'w') as log_file:
-    # Redirect stdout to the log file
-    sys.stdout = log_file
-
+def process_image_and_xml(gt_xml_directory, pred_xml_directory, image_directory, output_directory):
     # Process XML files
     for xml_filename in os.listdir(gt_xml_directory):
         if xml_filename.endswith('.xml'):
@@ -116,6 +112,15 @@ with open(log_file_path, 'w') as log_file:
                     if iou > iou_threshold and gt_boxes['names'][i] == pred_boxes['names'][j]:
                         print(
                             f"{datetime.now()} - Match found!\nGround Truth XML: {xml_filename}, Bounding Box: {gt_box}, Name: {gt_boxes['names'][i]}\nPredicted XML: {xml_filename}, Bounding Box: {pred_box}, Name: {pred_boxes['names'][j]}\nIoU: {iou}\n")
+
+
+
+# Create a log file with timestamps
+log_file_path = f'log/history_{time.time()}.log'
+with open(log_file_path, 'w') as log_file:
+    # Redirect stdout to the log file
+    sys.stdout = log_file
+    process_image_and_xml(gt_xml_directory, pred_xml_directory, image_directory, output_directory)
 
 # Restore the original stdout
 sys.stdout = sys.__stdout__
