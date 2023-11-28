@@ -1,5 +1,5 @@
 *.tar.gz
-dataset/
+dataset*/
 src/__pycache__
 outputs_new*/
 log/*
