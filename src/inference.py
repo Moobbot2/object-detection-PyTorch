@@ -15,11 +15,11 @@ device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 
 # Load the model and trained weights
 model = create_model(num_classes=NUM_CLASSES).to(device)
-model.load_state_dict(torch.load('./outputs_new/model_100.pth', map_location=device))
+model.load_state_dict(torch.load('./outputs_new/model_110_bs16_500epoch_7_3.pth', map_location=device))
 model.eval()
 
 # Directory where all the test images are located
-DIR_TEST = './dataset/test_data'
+DIR_TEST = './dataset/images/pano_test'
 test_images = glob.glob(f"{DIR_TEST}/*")
 print(f"Test instances: {len(test_images)}")
 
@@ -30,22 +30,22 @@ CLASSES = CLASSES
 detection_threshold = 0.3
 
 # Directory to store the output XML files
-xml_dir = './dataset/test_predictions/xml/'
+xml_dir = './dataset/test_predictions_model_110_bs16_500epoch_7_3/xml/'
 os.makedirs(xml_dir, exist_ok=True)
 
 # Function to save the image and its corresponding XML file
-def save_image_with_xml(image, image_name, draw_boxes, pred_classes):
+def save_image_with_xml(image, image_name, draw_boxes, pred_classes, pred_scores):
     pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    
+
     # Save the image to the test_predictions folder
-    pil_image.save(f'./dataset/test_predictions/{image_name}.jpg')
+    pil_image.save(f'./dataset/test_predictions_model_110_bs16_500epoch_7_3/{image_name}.jpg')
 
     # Create an XML file in Pascal VOC format
     annotation = Element('annotation')
 
     # Add basic image information
     folder = SubElement(annotation, 'folder')
-    folder.text = 'test_predictions'
+    folder.text = 'test_predictions_model_110_bs16_500epoch_7_3'
     filename = SubElement(annotation, 'filename')
     filename.text = f'{image_name}.jpg'
 
@@ -54,6 +54,8 @@ def save_image_with_xml(image, image_name, draw_boxes, pred_classes):
         obj = SubElement(annotation, 'object')
         name = SubElement(obj, 'name')
         name.text = pred_classes[j]
+        score = SubElement(obj, 'score')
+        score.text = pred_scores[j]
         bndbox = SubElement(obj, 'bndbox')
         xmin = SubElement(bndbox, 'xmin')
         xmin.text = str(box[0])
@@ -68,7 +70,9 @@ def save_image_with_xml(image, image_name, draw_boxes, pred_classes):
     xml_file = os.path.join(xml_dir, f'{image_name}.xml')
     tree = ElementTree(annotation)
     tree.write(xml_file)
-    print(f'The bounding box of the {image_name} image has been saved successfully')
+    print(
+        f'The bounding box of the {image_name} image has been saved successfully')
+
 
 # Process each test image
 for i in range(len(test_images)):
@@ -77,7 +81,7 @@ for i in range(len(test_images)):
     image_name = image_name.split('.')[0]
     image = cv2.imread(test_images[i])
     orig_image = image.copy()
-    
+
     # Convert color from BGR to RGB
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
     # Normalize pixel range to [0, 1]
@@ -101,13 +105,18 @@ for i in range(len(test_images)):
     if len(outputs[0]['boxes']) != 0:
         boxes = outputs[0]['boxes'].data.numpy()
         scores = outputs[0]['scores'].data.numpy()
-        
+
         # Filter out boxes based on the detection threshold
         boxes = boxes[scores >= detection_threshold].astype(np.int32)
         draw_boxes = boxes.copy()
-        
+
         # Get the predicted class names and convert scores to strings
-        pred_classes = [f"{CLASSES[i]} -- scores: {scores[j]:.2f}" for j, i in enumerate(outputs[0]['labels'].cpu().numpy())]
+        pred_classes_scores = [f"{CLASSES[i]} -- scores: {scores[j]:.2f}" for j,
+                               i in enumerate(outputs[0]['labels'].cpu().numpy())]
+        pred_classes = [f"{CLASSES[i]}" for j, i in enumerate(
+            outputs[0]['labels'].cpu().numpy())]
+        pred_scores = [f"scores: {scores[j]:.2f}" for j, i in enumerate(
+            outputs[0]['labels'].cpu().numpy())]
 
         # Draw bounding boxes and write class names on them
         for j, box in enumerate(draw_boxes):
@@ -115,13 +124,14 @@ for i in range(len(test_images)):
                           (int(box[0]), int(box[1])),
                           (int(box[2]), int(box[3])),
                           (0, 255, 0), 2)
-            cv2.putText(orig_image, pred_classes[j],
+            cv2.putText(orig_image, pred_classes_scores[j],
                         (int(box[0]), int(box[1]-5)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2,
                         lineType=cv2.LINE_AA)
-        
+
         # Save the image and generate the XML file
-        pil_image = save_image_with_xml(orig_image, image_name, draw_boxes, pred_classes)
+        pil_image = save_image_with_xml(
+            orig_image, image_name, draw_boxes, pred_classes, pred_scores)
 
         plt.imshow(orig_image)
         plt.axis('off')
