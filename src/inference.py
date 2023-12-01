@@ -105,37 +105,36 @@ for i in range(len(test_images)):
     if len(outputs[0]['boxes']) != 0:
         boxes = outputs[0]['boxes'].data.numpy()
         scores = outputs[0]['scores'].data.numpy()
-
         # Filter out boxes based on the detection threshold
-        boxes = boxes[scores >= detection_threshold].astype(np.int32)
+        filtered_indices = scores >= detection_threshold
+        boxes = boxes[filtered_indices].astype(np.int32)
+        scores = scores[filtered_indices]
         draw_boxes = boxes.copy()
 
         # Get the predicted class names and convert scores to strings
-        pred_classes_scores = [f"{CLASSES[i]} -- scores: {scores[j]:.2f}" for j,
-                               i in enumerate(outputs[0]['labels'].cpu().numpy())]
-        pred_classes = [f"{CLASSES[i]}" for j, i in enumerate(
-            outputs[0]['labels'].cpu().numpy())]
-        pred_scores = [f"scores: {scores[j]:.2f}" for j, i in enumerate(
-            outputs[0]['labels'].cpu().numpy())]
+        pred_classes_scores = [f"{CLASSES[i]} -- scores: {score:.2f}" for score, i in zip(scores, outputs[0]['labels'].cpu().numpy())]
+        pred_classes = [f"{CLASSES[i]}" for i in outputs[0]['labels'].cpu().numpy()]
+        pred_scores = [f"scores: {score:.2f}" for score in scores]
 
         # Draw bounding boxes and write class names on them
         for j, box in enumerate(draw_boxes):
             cv2.rectangle(orig_image,
-                          (int(box[0]), int(box[1])),
-                          (int(box[2]), int(box[3])),
-                          (0, 255, 0), 2)
+                        (int(box[0]), int(box[1])),
+                        (int(box[2]), int(box[3])),
+                        (0, 255, 0), 2)
             cv2.putText(orig_image, pred_classes_scores[j],
                         (int(box[0]), int(box[1]-5)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2,
                         lineType=cv2.LINE_AA)
 
         # Save the image and generate the XML file
-        pil_image = save_image_with_xml(
-            orig_image, image_name, draw_boxes, pred_classes, pred_scores)
+        if pred_scores:
+            pil_image = save_image_with_xml(
+                orig_image, image_name, draw_boxes, pred_classes, pred_scores)
 
-        plt.imshow(orig_image)
-        plt.axis('off')
-        plt.show()
+        # plt.imshow(orig_image)
+        # plt.axis('off')
+        # plt.show()
     print(f'Image {i+1} done ...')
     print('-'*50)
 
