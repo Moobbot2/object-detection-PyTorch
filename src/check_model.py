@@ -42,13 +42,22 @@ def calculate_iou(box1, box2):
 
 
 def draw_boxes_on_image(image, gt_boxes, pred_boxes):
-    for box in gt_boxes:
+    for j, box in enumerate(gt_boxes['boxes']):
         cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
+        cv2.putText(image, gt_boxes['names'][j],
+                    (int(box[0]), int(box[1]-5)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2,
+                    lineType=cv2.LINE_AA)
 
-    for box in pred_boxes:
+    for j, box in enumerate(pred_boxes['boxes']):
         cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (255, 0, 0), 2)
+        cv2.putText(image, pred_boxes['names'][j],
+                    (int(box[0]), int(box[1]-5)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2,
+                    lineType=cv2.LINE_AA)
 
     return image
+
 
 
 def process_xml_file(xml_file_path):
@@ -70,28 +79,28 @@ def log_message(message):
 def process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filename, csv_writer = ''):
     if os.path.exists(image_path):
         image = cv2.imread(image_path)
-        drawn_image = draw_boxes_on_image(image, gt_boxes['boxes'], pred_boxes['boxes'])
+        drawn_image = draw_boxes_on_image(image, gt_boxes, pred_boxes)
         if drawn_image is not None:
             output_path = os.path.join(output_directory, f"{xml_filename.split('.')[0]}.png")
             pil_image = Image.fromarray(cv2.cvtColor(drawn_image, cv2.COLOR_BGR2RGB))
             pil_image.save(output_path)
 
             # Calculate IoU and write to CSV
-            # for i, gt_box in enumerate(gt_boxes['boxes']):
-            #     for j, pred_box in enumerate(pred_boxes['boxes']):
-            #         iou = calculate_iou(gt_box, pred_box)
-            #         if gt_boxes['names'][i] == pred_boxes['names'][j]:
-            #             csv_writer.writerow(
-            #                 [xml_filename, gt_boxes['names'][i], gt_box, pred_box, iou])
+            for i, gt_box in enumerate(gt_boxes['boxes']):
+                for j, pred_box in enumerate(pred_boxes['boxes']):
+                    iou = calculate_iou(gt_box, pred_box)
+                    if gt_boxes['names'][i] == pred_boxes['names'][j]:
+                        csv_writer.writerow(
+                            [xml_filename, gt_boxes['names'][i], gt_box, pred_box, iou])
     else:
         print(f"{datetime.now()} - Image not found: {image_path}")
 
 
 def process_image_and_xml(gt_xml_directory, pred_xml_directory, image_directory, output_directory, csv_output_path):
-    # with open(csv_output_path, 'w', newline='') as csv_file:
-        # csv_writer = csv.writer(csv_file)
+    with open(csv_output_path, 'w', newline='') as csv_file:
+        csv_writer = csv.writer(csv_file)
         # Write CSV header
-        # csv_writer.writerow(['Filename', 'Name', 'Box_label', 'Box_model', 'IoU'])
+        csv_writer.writerow(['Filename', 'Name', 'Box_label', 'Box_model', 'IoU'])
 
         # Process XML files
         for xml_filename in os.listdir(gt_xml_directory):
@@ -109,8 +118,8 @@ def process_image_and_xml(gt_xml_directory, pred_xml_directory, image_directory,
                 image_name, _ = os.path.splitext(os.path.basename(gt_xml_file_path))
                 image_path = find_image_path(image_directory, image_name)
 
-                # process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filename, csv_writer)
-                process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filename)
+                process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filename, csv_writer)
+                # process_image(image_path, gt_boxes, pred_boxes, output_directory, xml_filename)
 
                 # Calculate IoU and print information
                 iou_threshold = 0.1
