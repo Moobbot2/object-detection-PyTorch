@@ -1,5 +1,5 @@
 from config import DEVICE, NUM_CLASSES, NUM_EPOCHS, OUT_DIR
-from config import VISUMLIZE_TRANSFORMED_IMAGES
+from config import VISUALIZE_TRANSFORMED_IMAGES
 from config import SAVE_PLOTS_EPOCH, SAVE_MODEL_EPOCH
 from model import create_model
 from ultis import Averager
@@ -10,13 +10,13 @@ import torch
 import matplotlib.pyplot as plt
 import time
 
-plt.style.use('ggplot')
+plt.style.use("ggplot")
 
 # function for running training iterations
 
 
 def train(train_data_loader, model):
-    print('Training')
+    print("Training")
     global train_itr
     global train_loss_list
     train_loss_list = []
@@ -56,7 +56,7 @@ def train(train_data_loader, model):
 
 
 def validate(valid_data_loader, model):
-    print('Validating')
+    print("Validating")
     global val_itr
     global val_loss_list
     val_loss_list = []
@@ -92,24 +92,23 @@ def save_chart(out_dir, train_loss, val_loss, epoch):
     figure_1, train_ax = plt.subplots()
     figure_2, valid_ax = plt.subplots()
     train_ax.plot(train_loss, color="blue")
-    train_ax.set_xlabel('iterations')
-    train_ax.set_ylabel('train loss')
+    train_ax.set_xlabel("iterations")
+    train_ax.set_ylabel("train loss")
     valid_ax.plot(val_loss, color="red")
-    valid_ax.set_xlabel('iterations')
-    valid_ax.set_ylabel('validation loss')
+    valid_ax.set_xlabel("iterations")
+    valid_ax.set_ylabel("validation loss")
     figure_1.savefig(f"{out_dir}/{epoch}_train_loss.png")
     figure_2.savefig(f"{out_dir}/{epoch}_valid_loss.png")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # initialize the model and over the compufation device
     model = create_model(num_classes=NUM_CLASSES)
     model = model.to(DEVICE)
     # get the model parametors
     params = [p for p in model.parameters() if p.requires_grad]
     # define the optimizer
-    optimizer = torch.optim.SGD(
-        params, lr=0.0001, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(params, lr=0.0001, momentum=0.9, weight_decay=0.0005)
 
     # initialize the Averager class
     train_loss_hist = Averager()
@@ -122,16 +121,17 @@ if __name__ == '__main__':
     val_loss_list = []
 
     # name to save the trained model with
-    MODEL_NAME = 'model'
+    MODEL_NAME = "model"
 
     # whether to show transformed images from data loader or not
-    if VISUMLIZE_TRANSFORMED_IMAGES:
+    if VISUALIZE_TRANSFORMED_IMAGES:
         from ultis import show_tranformed_image
+
         show_tranformed_image(train_loader)
     for epoch in range(NUM_EPOCHS):
-        epoch_real = epoch+1
+        epoch_real = epoch + 1
 
-        print(f'\nEPOCH {epoch_real} of {NUM_EPOCHS}')
+        print(f"\nEPOCH {epoch_real} of {NUM_EPOCHS}")
 
         # reset the training and validation loss histories for the current epoch
         train_loss_hist.reset()
@@ -139,29 +139,33 @@ if __name__ == '__main__':
 
         # start timer and carry out training and validation
         start = time.time()
+        # model.train()
         train_loss = train(train_loader, model)
+        # model.eval()
         val_loss = validate(valid_loader, model)
-        print(f'Epoch #{epoch} train loss: {train_loss_hist.value:.3f}')
-        print(f'Epoch #{epoch} validation loss: {val_loss_hist.value:.3f}')
+        print(f"Epoch #{epoch} train loss: {train_loss_hist.value:.3f}")
+        print(f"Epoch #{epoch} validation loss: {val_loss_hist.value:.3f}")
         end = time.time()
-        print(f'Took{((end-start)/60):.3f} minutes for epoch {epoch}')
+        print(f"Took{((end-start)/60):.3f} minutes for epoch {epoch}")
 
         if epoch_real % SAVE_MODEL_EPOCH == 0:  # save model after every n epochs
-            torch.save(model.state_dict(), f'{OUT_DIR}/model_{epoch+1}.pth')
-            print('SAVING MODEL COMPLETE...\n')
+            torch.save(model.state_dict(), f"{OUT_DIR}/model_{epoch+1}.pth")
+            print("SAVING MODEL COMPLETE...\n")
 
-        if epoch_real % SAVE_PLOTS_EPOCH == 0:  # save loss plots and model once at the end
+        if (
+            epoch_real % SAVE_PLOTS_EPOCH == 0
+        ):  # save loss plots and model once at the end
             save_chart(OUT_DIR, train_loss, val_loss, epoch_real)
             print("SAVING PLOTS COMPLETE")
 
         if epoch_real == NUM_EPOCHS:  # save loss plots and model once at the end
             save_chart(OUT_DIR, train_loss, val_loss, epoch_real)
             torch.save(model.state_dict(), f"{OUT_DIR}/model_{epoch+1}.pth")
-            print('SAVING MODEL COMPLETE...\n')
+            print("SAVING MODEL COMPLETE...\n")
 
         if float(train_loss_hist.value) < 0.05 or float(val_loss_hist.value) < 0.05:
             torch.save(model.state_dict(), f"{OUT_DIR}/best_model_{epoch+1}.pth")
             break
-        plt.close('all')
+        plt.close("all")
         # sleep for 5 seconds after each epoch
         time.sleep(5)

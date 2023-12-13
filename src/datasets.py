@@ -67,7 +67,7 @@ class CustDataset(Dataset):
 
         # read the image
         image = cv2.imread(image_path)
-        print(image_name, ":", image.shape)
+        # print(image_name, ":", image.shape)
 
         # Check if the image is grayscale (single channel)
         if image.shape[2] == 1:
@@ -217,9 +217,9 @@ if __name__ == "__main__":
             cv2.putText(image_copy, label,
                         (int(box[0]), int(box[1] - 5)),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            plt.imshow(cv2.cvtColor(image_copy, cv2.COLOR_BGR2RGB))
-            plt.axis("off")
-            plt.show()
+            # plt.imshow(cv2.cvtColor(image_copy, cv2.COLOR_BGR2RGB))
+            # plt.axis("off")
+            # plt.show()
 
             if save_path:
                 # Optionally, save the annotated image to a file
