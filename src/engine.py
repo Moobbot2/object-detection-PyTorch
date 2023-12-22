@@ -42,7 +42,7 @@ def train(train_data_loader, model):
 
         train_loss_hist.send(loss_value)
 
-        # Backpropagate and optimize
+        # Backpropagation and optimize
         losses.backward()
         optimizer.step()
 
@@ -102,10 +102,10 @@ def save_chart(out_dir, train_loss, val_loss, epoch):
 
 
 if __name__ == "__main__":
-    # initialize the model and over the compufation device
+    # initialize the model and over the computation device
     model = create_model(num_classes=NUM_CLASSES)
     model = model.to(DEVICE)
-    # get the model parametors
+    # get the model parameter
     params = [p for p in model.parameters() if p.requires_grad]
     # define the optimizer
     optimizer = torch.optim.SGD(params, lr=0.0001, momentum=0.9, weight_decay=0.0005)
